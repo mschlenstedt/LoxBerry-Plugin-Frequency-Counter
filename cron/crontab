@@ -1,0 +1,2 @@
+MAILTO=""
+@reboot     loxberry cd REPLACELBPBINDIR && REPLACELBPBINDIR/watchdog.sh > /dev/null 2>&1
