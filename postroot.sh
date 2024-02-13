@@ -34,13 +34,11 @@ PCONFIG=$LBPCONFIG/$PDIR
 PSBIN=$LBPSBIN/$PDIR
 PBIN=$LBPBIN/$PDIR
 
-echo "<INFO> Compiling freq_counter.c..."
-cd $PSBIN/src
-gcc -o freq_count_1 freq_count_1.c -lpigpio -lpthread
+echo "<INFO> Compiling freq_count.c..."
+gcc -o $PSBIN/freq_count_1 $PSBIN/src/freq_count_1.c -lpigpio -lpthread
 
-if [ -e "$PSBIN/src/freq_count_1" ]; then
+if [ -e "$PSBIN/freq_count_1" ]; then
 	echo "<OK> Compilation successfull."
-	mv $PSBIN/src/freq_count_1 $PSBIN
 	chmod a+x $PSBIN/freq_count_1
 else
 	echo "<FAIL> Something went wrong. We have to abort the installation here. THIS PLUGIN WILL NOT WORK."
