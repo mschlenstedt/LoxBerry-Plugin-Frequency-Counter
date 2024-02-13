@@ -31,15 +31,14 @@ PTEMPL=$LBPTEMPL/$PDIR
 PDATA=$LBPDATA/$PDIR
 PLOG=$LBPLOG/$PDIR # Note! This is stored on a Ramdisk now!
 PCONFIG=$LBPCONFIG/$PDIR
-PSBIN=$LBPSBIN/$PDIR
 PBIN=$LBPBIN/$PDIR
 
 echo "<INFO> Compiling freq_count.c..."
-gcc -o $PSBIN/freq_count_1 $PSBIN/src/freq_count_1.c -lpigpio -lpthread
+gcc -o $PBIN/freq_count_1 $PBIN/src/freq_count_1.c -lpigpio -lpthread
 
-if [ -e "$PSBIN/freq_count_1" ]; then
+if [ -e "$PBIN/freq_count_1" ]; then
 	echo "<OK> Compilation successfull."
-	chmod a+x $PSBIN/freq_count_1
+	chmod a+x $PBIN/freq_count_1
 else
 	echo "<FAIL> Something went wrong. We have to abort the installation here. THIS PLUGIN WILL NOT WORK."
 	exit 2;
