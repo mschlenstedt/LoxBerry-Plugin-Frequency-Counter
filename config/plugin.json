@@ -1,10 +1,11 @@
 {
-   "api_key" : "5K4MVS-OjfWhK_4yrjOlFe1F6kJXPVf7eQYggo8ebAE",
-   "plot_width" : "1000",
-   "plot_height" : "500",
-   "text_color" : "#FFFFFF",
-   "bar_color" : "#6DAC20",
-   "bar_active_color" : "#36550F",
-   "topic" : "tibber_display",
-   "path" : "/dev/shm/tibber_display"
+   "fc1" : "0",
+   "fc2" : "0",
+   "fc3" : "0",
+   "fc4" : "0",
+   "fc5" : "0",
+   "filename" : "/dev/shm/freq_count.json",
+   "refreshrate" : "5",
+   "samplerate" : "5",
+   "topic" : "freq_count"
 }

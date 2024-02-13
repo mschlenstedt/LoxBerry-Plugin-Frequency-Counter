@@ -124,7 +124,7 @@ if( $q->{ajax} ) {
 	#	addtime => 1
 	#);
 
-	LOGSTART "Tibber-Display WebIf";
+	LOGSTART "Frequency-Counter WebIf";
 	
 	# Init Template
 	$template = HTML::Template->new(
@@ -139,7 +139,6 @@ if( $q->{ajax} ) {
 	$q->{form} = "settings" if !$q->{form};
 
 	if ($q->{form} eq "settings") { &form_settings() }
-	elsif ($q->{form} eq "loxconfig") { &form_loxconfig() }
 	elsif ($q->{form} eq "log") { &form_log() }
 
 	# Print the form
@@ -156,20 +155,6 @@ exit;
 sub form_settings
 {
 	$template->param("FORM_SETTINGS", 1);
-	return();
-}
-
-
-##########################################################################
-# Form: LoxConfig
-##########################################################################
-
-sub form_loxconfig
-{
-	$template->param("FORM_LOXCONFIG", 1);
-	$template->param("URL_WEBPAGE", "http://". $ENV{HTTP_HOST} . "/plugins/" . $lbpplugindir . "/today.html");
-	$template->param("URL_HTTPVI", "http://". $ENV{HTTP_HOST} . "/plugins/" . $lbpplugindir . "/data/tibber_data.json");
-	$template->param("URL_MQTTVI", "http://". $ENV{HTTP_HOST} . "/admin/system/mqtt-gateway.cgi?form=incoming");
 	return();
 }
 
@@ -198,16 +183,12 @@ sub form_print
 	$navbar{10}{URL} = 'index.cgi?form=settings';
 	$navbar{10}{active} = 1 if $q->{form} eq "settings";
 	
-	$navbar{30}{Name} = "$L{'COMMON.LABEL_LOXCONFIG'}";
-	$navbar{30}{URL} = 'index.cgi?form=loxconfig';
-	$navbar{30}{active} = 1 if $q->{form} eq "loxconfig";
-
 	$navbar{99}{Name} = "$L{'COMMON.LABEL_LOG'}";
 	$navbar{99}{URL} = 'index.cgi?form=log';
 	$navbar{99}{active} = 1 if $q->{form} eq "log";
 	
 	# Template
-	LoxBerry::Web::lbheader($L{'COMMON.LABEL_PLUGINTITLE'} . " V$version", "https://wiki.loxberry.de/plugins/tibber-display/start", "");
+	LoxBerry::Web::lbheader($L{'COMMON.LABEL_PLUGINTITLE'} . " V$version", "https://wiki.loxberry.de/plugins/frequency-counter/start", "");
 	print $template->output();
 	LoxBerry::Web::lbfooter();
 	
@@ -234,16 +215,17 @@ sub savesettings
 	my $errors;
 	my $jsonobj = LoxBerry::JSON->new();
 	my $cfg = $jsonobj->open(filename => $CFGFILE);
-	$cfg->{'api_key'} = $q->{'apikey'};
-	$cfg->{'plot_width'} = $q->{'width'};
-	$cfg->{'plot_height'} = $q->{'height'};
-	$cfg->{'text_color'} = $q->{'textcolor'};
-	$cfg->{'bar_color'} = $q->{'barcolor'};
-	$cfg->{'bar_active_color'} = $q->{'activebarcolor'};
+	$cfg->{'samplerate'} = $q->{'samplerate'};
+	$cfg->{'refreshrate'} = $q->{'refreshrate'};
 	$cfg->{'topic'} = $q->{'topic'};
+	$cfg->{'fc1'} = $q->{'fc1'};
+	$cfg->{'fc2'} = $q->{'fc2'};
+	$cfg->{'fc3'} = $q->{'fc3'};
+	$cfg->{'fc4'} = $q->{'fc4'};
+	$cfg->{'fc5'} = $q->{'fc5'};
 	$jsonobj->write();
-	system("$lbpbindir/tibber.sh --do today > /dev/null 2>&1");
-	system("$lbpbindir/tibber.sh --do tomorrow > /dev/null 2>&1");
+	#system("$lbpbindir/tibber.sh --do today > /dev/null 2>&1");
+	#system("$lbpbindir/tibber.sh --do tomorrow > /dev/null 2>&1");
 	return ($errors);
 }
 
