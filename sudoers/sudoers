@@ -1,1 +1,3 @@
 loxberry ALL = NOPASSWD: REPLACELBPBINDIR/freq_count_1
+loxberry ALL = NOPASSWD: REPLACELBPBINDIR/freq_count_helper.sh
+loxberry ALL = NOPASSWD: REPLACELBPBINDIR/freq_count_watchdog.pl
