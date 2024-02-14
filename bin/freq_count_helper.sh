@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$UID" -ne 0 ]; then
+	echo "This script has to be run as root."
+	exit
+fi
+
 # Vars
 LBPCONFIGDIR=$(perl -e 'use LoxBerry::System; print $lbpconfigdir; exit;')
 LBPBINDIR=$(perl -e 'use LoxBerry::System; print $lbpbindir; exit;')
