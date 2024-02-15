@@ -56,23 +56,46 @@ my %versions;
 
 if( $q->{ajax} ) {
 	
-	## Logging for ajax requests
-	$log = LoxBerry::Log->new (
-		name => 'AJAX',
-		filename => "$lbplogdir/ajax.log",
-		stderr => 1,
-		loglevel => 7,
-		addtime => 1,
-		append => 1,
-		nosession => 1,
-	);
+#	## Logging for ajax requests
+#	$log = LoxBerry::Log->new (
+#		name => 'AJAX',
+#		filename => "$lbplogdir/ajax.log",
+#		stderr => 1,
+#		loglevel => 7,
+#		addtime => 1,
+#		append => 1,
+#		nosession => 1,
+#	);
 	
-	LOGSTART "P$$ Ajax call: $q->{ajax}";
-	LOGDEB "P$$ Request method: " . $ENV{REQUEST_METHOD};
+#	LOGSTART "P$$ Ajax call: $q->{ajax}";
+#	LOGDEB "P$$ Request method: " . $ENV{REQUEST_METHOD};
 	
 	## Handle all ajax requests 
 	my %response;
 	ajax_header();
+
+	if( $q->{ajax} eq "servicerestart" ) {
+		system ("cd $lbpbindir && sudo $lbpbindir/freq_count_helper.sh stop > /dev/null 2>&1");
+		sleep (2);
+		system ("cd $lbpbindir && sudo $lbpbindir/freq_count_helper.sh start > /dev/null 2>&1");
+		print JSON->new->canonical(1)->encode( $? );
+	}
+
+	if( $q->{ajax} eq "servicestop" ) {
+		system ("cd $lbpbindir && sudo $lbpbindir/freq_count_helper.sh stop > /dev/null 2>&1");
+		print JSON->new->canonical(1)->encode( $? );
+	}
+
+	if( $q->{ajax} eq "servicestatus" ) {
+		my $status;
+		my $count = `pgrep -c -f "freq_count_watchdog.sh"`;
+		if ($count >= "2") {
+			$status = `pgrep -o -f "freq_count_watchdog.sh"`;
+			chomp ($status);
+		}
+		$response{pid} = $status;
+		print JSON->new->canonical(1)->encode( \%response );
+	}
 
 	# Save Settings
 	if( $q->{ajax} eq "savesettings" ) {

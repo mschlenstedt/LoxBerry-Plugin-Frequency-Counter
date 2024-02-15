@@ -31,12 +31,18 @@ PTEMPL=$LBPTEMPL/$PDIR
 PDATA=$LBPDATA/$PDIR
 PLOG=$LBPLOG/$PDIR # Note! This is stored on a Ramdisk now!
 PCONFIG=$LBPCONFIG/$PDIR
-PSBIN=$LBPSBIN/$PDIR
 PBIN=$LBPBIN/$PDIR
 
-echo "<INFO> Creating first set of plots..."
-cd $PBIN && $PBIN/tibber.sh --do tomorrow > /dev/null 2>&1
-cd $PBIN && $PBIN/tibber.sh --do today > /dev/null 2>&1
+echo "<INFO> Compiling freq_count.c..."
+gcc -o $PBIN/freq_count_1 $PBIN/src/freq_count_1.c -lpigpio -lpthread
+
+if [ -e "$PBIN/freq_count_1" ]; then
+	echo "<OK> Compilation successfull."
+	chmod a+x $PBIN/freq_count_1
+else
+	echo "<FAIL> Something went wrong. We have to abort the installation here. THIS PLUGIN WILL NOT WORK."
+	exit 2;
+fi 
 
 # Exit with Status 0
 exit 0

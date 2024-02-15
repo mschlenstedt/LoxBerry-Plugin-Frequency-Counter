@@ -7,5 +7,6 @@
    "filename" : "/dev/shm/freq_count.json",
    "refreshrate" : "5",
    "samplerate" : "5",
-   "topic" : "freq_count"
+   "topic" : "freq_count",
+   "test" : ""
 }

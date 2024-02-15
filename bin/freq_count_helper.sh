@@ -28,6 +28,7 @@ case "$1" in
 	fi
 
 	JSONFILE=$(jq -r '.filename' $LBPCONFIGDIR/plugin.json)
+	TEST=$(jq -r '.test' $LBPCONFIGDIR/plugin.json)
 	SAMPLERATE=$(jq -r '.samplerate' $LBPCONFIGDIR/plugin.json)
 	REFRESHRATE=$(jq -r '.refreshrate' $LBPCONFIGDIR/plugin.json)
 	let REFRESHRATE=$REFRESHRATE*10
@@ -55,22 +56,22 @@ case "$1" in
 	if [ $LOGLEVEL -gt 6 ]; then
 		VERBOSE="-v"
 	fi
-	pkill -f freq_count_1
+	pkill -f "freq_count_1"
 	sleep 1
-	LOGINF "Command: $LBPBINDIR/freq_count_1 $GPIO -r$REFRESHRATE -s$SAMPLERATE -p700 -f $JSONFILE $VERBOSE >> $FILENAME"
-	$LBPBINDIR/freq_count_1 $GPIO -r$REFRESHRATE -s$SAMPLERATE -f $JSONFILE $VERBOSE >> $FILENAME &
+	LOGINF "Command: $LBPBINDIR/freq_count_1 $GPIO -r$REFRESHRATE -s$SAMPLERATE $TEST -f $JSONFILE $VERBOSE >> $FILENAME"
+	$LBPBINDIR/freq_count_1 $GPIO -r$REFRESHRATE -s$SAMPLERATE $TEST -f $JSONFILE $VERBOSE >> $FILENAME &
 	sleep 1
-	if pgrep -f freq_count_1 > /dev/null 2>&1 ; then
+	if pgrep -f "freq_count_1" > /dev/null 2>&1 ; then
 		LOGOK "FREQ_COUNT Daemon started successfully."
 	else
 		LOGERR "FREQ_COUNT Daemon could't be started."
 	fi
-	if pgrep -f freq_count_watchdog.sh > /dev/null 2>&1 ; then
+	if pgrep -f "freq_count_watchdog.sh" > /dev/null 2>&1 ; then
 		LOGOK "FREQ_COUNT Watchdog is running. Fine."
 	else
 		LOGINF "FREQ_COUNT Watchdog isn't running. Also starting the Watchdog."
 		LOGINF "Command: $LBPBINDIR/freq_count_watchdog.sh"
-		$LBPBINDIR/freq_count_watchdog.sh &
+		cd $LBPBINDIR && $LBPBINDIR/freq_count_watchdog.sh &
 	fi
 	;;
 
@@ -80,15 +81,15 @@ case "$1" in
 
 	touch $LBPCONFIGDIR/daemon_stopped.cfg
 
-	pkill -f freq_count_watchdog.sh
-	pkill -f freq_count_1
+	pkill -f "freq_count_watchdog.sh"
+	pkill -f "freq_count_1"
 	sleep 1
-	if pgrep -f freq_count_1 > /dev/null 2>&1 ; then
+	if pgrep -f "freq_count_1" > /dev/null 2>&1 ; then
 		LOGERR "FREQ_COUNT Daemon could't be stopped."
 	else
 		LOGOK "FREQ_COUNT Daemon stopped successfully."
 	fi
-	if pgrep -f freq_count_watchdog.sh > /dev/null 2>&1 ; then
+	if pgrep -f "freq_count_watchdog.sh" > /dev/null 2>&1 ; then
 		LOGERR "FREQ_COUNT Watchdog could't be stopped."
 	else
 		LOGOK "FREQ_COUNT Watchdog stopped successfully."
@@ -103,20 +104,20 @@ case "$1" in
 	if [ -e "$LBPCONFIGDIR/daemon_stopped.cfg" ]; then
 		LOGOK "FREQ_COUNT Daemon stopped manually. Will do nothing.."
 	else
-		if pgrep -f freq_count_1 > /dev/null 2>&1 ; then
+		if pgrep -f "freq_count_1" > /dev/null 2>&1 ; then
 			LOGOK "FREQ_COUNT Daemon is running. Fine."
 		else
 			LOGERR "FREQ_COUNT Daemon is not running. That's not good."
 			ERROR=1
 		fi
-		if pgrep -f freq_count_watchdog.sh > /dev/null 2>&1 ; then
+		if pgrep -f "freq_count_watchdog.sh" > /dev/null 2>&1 ; then
 			LOGOK "FREQ_COUNT Watchdog is running. Fine."
 		else
 			LOGERR "FREQ_COUNT Watchdog is not running. That's not good."
 			ERROR=1
 		fi
 		if [ $ERROR -gt 0 ]; then
-			$LBPBINDIR/freq_count_helper.sh start
+			cd $LBPBINDIR && $LBPBINDIR/freq_count_helper.sh start
 		fi
 	fi
 	;;

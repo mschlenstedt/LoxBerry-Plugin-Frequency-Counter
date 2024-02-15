@@ -31,7 +31,7 @@ LOGDIR=$LBPLOG/$PLUGINNAME
 STDERR=1
 
 LOGSTART "FREQ_COUNT - Watchdog..."
-LOGOK "FREQ_COUNT - Watchdog..."
+LOGOK "FREQ_COUNT - Watchdog started..."
 
 while true
 do
@@ -39,9 +39,9 @@ do
 	NOW=$(date +%s)
 
 	# Check if all services are running
-	if ! pgrep -f freq_count_1 > /dev/null 2>&1 ; then
+	if ! pgrep -f "freq_count_1" > /dev/null 2>&1 ; then
 		LOGWARN "FREQ_COUNT Daemon is not running. That's not good. Restarting..."
-		$LBPBINDIR/freq_count_helper.sh start
+		cd $LBPBINDIR && $LBPBINDIR/freq_count_helper.sh start
 		sleep 2
 		let "FAILSTARTS+=1"
 	else
@@ -69,7 +69,7 @@ do
 		LAST=$NOW
 	fi
 
-	sleep 1
+	sleep 0.5
 
 done
 

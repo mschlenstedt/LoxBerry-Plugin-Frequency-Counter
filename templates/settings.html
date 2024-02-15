@@ -38,7 +38,28 @@
 		padding: 10px;
 	}
 	.mqtttable_headrow {
-	
+	}
+	.servicestatus {
+		display: grid;
+		grid-template-columns: auto auto auto auto;
+		grid-template-rows: 1fr;
+		gap: 0px 10px;
+		justify-content: center;
+		justify-items: center;
+		align-items: center;
+		text-shadow: none;
+	}
+	.margin {
+		margin: 10px;
+	}
+	.status {
+		padding: 7px;
+		box-sizing: border-box;
+		border-radius: 5px 5px 5px 5px;
+		background: #dfdfdf;
+		border: 1px solid #7E7E7E;
+		width: 170px;
+		text-align: center;
 	}
 
 </style>
@@ -46,6 +67,29 @@
 <!-- ****************************************************************************************** -->
 
 <TMPL_IF FORM_SETTINGS>
+
+	<div class="servicestatus">
+		<div>
+			Service Status:
+		</div>
+		<div id="servicestatusicon">
+			<img src="./images/unknown_20.png">
+		</div>
+		<div class="status" id="servicestatus">
+			<TMPL_VAR "GPIOS.LABEL_UNKNOWN">
+		</div>
+		<div>
+			<a href="#" onclick="servicerestart();return false;" data-role="button" data-inline="true" data-icon="refresh" data-mini="true"
+						data-transition="flow"><TMPL_VAR COMMON.BUTTON_RESTART></a>
+			<a href="#" onclick="servicestop();return false;" data-role="button" data-inline="true" data-icon="delete" data-mini="true"
+						data-transition="flow"><TMPL_VAR COMMON.BUTTON_STOP></a>
+		</div>
+
+	</div>
+
+	<br><hr><br>
+
+
 	<form>
 	
 	<div class="lb_flex-container SETTINGS ui-state-disabled">
@@ -349,12 +393,108 @@
 // Main form
 var formsettings = '<TMPL_VAR FORM_SETTINGS>';
 var formlog = '<TMPL_VAR FORM_LOG>';
+var nopidrefresh = "0";
 
 $(function() {
 
+	interval = window.setInterval(function(){ servicestatus(); }, 3000);
+	servicestatus();
 	getconfig();
 
 });
+
+// SERVICE STATE
+function servicestatus() {
+
+	if (nopidrefresh === "1") {
+		return;
+	}
+
+	nopidrefresh = "1";
+	$.ajax( { 
+			type: 'POST',
+			data: { 
+				ajax: 'servicestatus'
+			}
+		} )
+	.fail(function( data ) {
+		console.log( "Servicestatus Fail", data );
+		$("#servicestatus").attr("style", "background:#dfdfdf; color:red").html("<TMPL_VAR "COMMON.HINT_FAILED">");
+		$("#servicestatusicon").html("<img src='./images/unknown_20.png'>");
+	})
+	.done(function( data ) {
+		console.log( "Servicestatus Success", data );
+		if (data.pid) {
+			$("#servicestatus").attr("style", "background:#6dac20; color:black").html("<TMPL_VAR "COMMON.HINT_RUNNING"> <span class='small'>PID: " + data.pid + "</span>");
+			$("#servicestatusicon").html("<img src='./images/check_20.png'>");
+		} else {
+			$("#servicestatus").attr("style", "background:#FF6339; color:black").html("<TMPL_VAR "COMMON.HINT_STOPPED">");
+			$("#servicestatusicon").html("<img src='./images/error_20.png'>");
+		}
+	})
+	.always(function( data ) {
+		console.log( "Servicestatus Finished", data );
+		nopidrefresh = "0";
+	});
+}
+
+// SERVICE START_STOP
+
+function servicerestart() {
+
+	nopidrefresh = "1";
+	$("#servicestatus").attr("style", "color:blue").html("<TMPL_VAR "COMMON.HINT_EXECUTING">");
+	$("#servicestatusicon").html("<img src='./images/unknown_20.png'>");
+	$.ajax( { 
+			type: 'POST',
+			data: { 
+				ajax: 'servicerestart'
+			}
+		} )
+	.fail(function( data ) {
+		console.log( "Servicerestart Fail", data );
+	})
+	.done(function( data ) {
+		console.log( "Servicerestart Success", data );
+		if (data == "0") {
+			servicestatus();
+		} else {
+			$("#servicestatus").attr("style", "background:#dfdfdf; color:red").html("<TMPL_VAR "COMMON.HINT_FAILED">");
+		}
+	})
+	.always(function( data ) {
+		console.log( "Servicerestart Finished", data );
+		nopidrefresh = "0";
+	});
+}
+
+function servicestop() {
+
+	nopidrefresh = "1";
+	$("#servicestatus").attr("style", "color:blue").html("<TMPL_VAR "COMMON.HINT_EXECUTING">");
+	$("#servicestatusicon").html("<img src='./images/unknown_20.png'>");
+	$.ajax( { 
+			type: 'POST',
+			data: { 
+				ajax: 'servicestop'
+			}
+		} )
+	.fail(function( data ) {
+		console.log( "Servicestop Fail", data );
+	})
+	.done(function( data ) {
+		console.log( "Servicestop Success", data );
+		if (data == "0") {
+			servicestatus();
+		} else {
+			$("#servicestatus").attr("style", "background:#dfdfdf; color:red").html("<TMPL_VAR "COMMON.HINT_FAILED">");
+		}
+	})
+	.always(function( data ) {
+		console.log( "Servicestop Finished", data );
+		nopidrefresh = "0";
+	});
+}
 
 // Save Settings
 function saveSETTINGS() {
