@@ -1,2 +1,2 @@
 #!/bin/bash
-sudo REPLACELBPBINDIR/freq_count_helper.sh check
+cd REPLACELBPBINDIR && sudo REPLACELBPBINDIR/freq_count_helper.sh check
