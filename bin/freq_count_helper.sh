@@ -55,7 +55,6 @@ case "$1" in
 	if [ $LOGLEVEL -gt 6 ]; then
 		VERBOSE="-v"
 	fi
-	pkill -f freq_count_watchdog.pl
 	pkill -f freq_count_1
 	sleep 1
 	LOGINF "Command: $LBPBINDIR/freq_count_1 $GPIO -r$REFRESHRATE -s$SAMPLERATE -p700 -f $JSONFILE $VERBOSE >> $FILENAME"
@@ -66,13 +65,13 @@ case "$1" in
 	else
 		LOGERR "FREQ_COUNT Daemon could't be started."
 	fi
-	LOGINF "Command: $LBPBINDIR/freq_count_watchdog.pl"
-	#$LBPBINDIR/freq_count_watchdog.pl &
-	sleep 1
 	if pgrep -f freq_count_watchdog.pl > /dev/null 2>&1 ; then
-		LOGOK "FREQ_COUNT Watchdog started successfully."
+		LOGOK "FREQ_COUNT Watchdog is running. Fine."
 	else
-		LOGERR "FREQ_COUNT Watchdog could't be started."
+		LOGINF "FREQ_COUNT Watchdog isn't running. Also starting the Watchdog."
+		LOGINF "Command: $LBPBINDIR/freq_count_watchdog.sh"
+		#$LBPBINDIR/freq_count_watchdog.sh &
+		sleep 1
 	fi
 	;;
 
@@ -112,9 +111,9 @@ case "$1" in
 			ERROR=1
 		fi
 		if pgrep -f freq_count_watchdog.pl > /dev/null 2>&1 ; then
-			LOGOK "FREQ_COUNT Watchdog iis running. Fine."
+			LOGOK "FREQ_COUNT Watchdog is running. Fine."
 		else
-			LOGERR "FREQ_COUNT Watchdog iis not running. That's not good."
+			LOGERR "FREQ_COUNT Watchdog is not running. That's not good."
 			ERROR=1
 		fi
 		if [ $ERROR -gt 0 ]; then
