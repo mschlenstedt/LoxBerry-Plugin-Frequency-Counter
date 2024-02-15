@@ -11,7 +11,7 @@ LBPBINDIR=$(perl -e 'use LoxBerry::System; print $lbpbindir; exit;')
 PLUGINNAME=$(perl -e 'use LoxBerry::System; print $lbpplugindir; exit;')
 JSONFILE=$(jq -r '.filename' $LBPCONFIGDIR/plugin.json)
 TOPIC=$(jq -r '.topic' $LBPCONFIGDIR/plugin.json)
-UDPINPORT=$(jq -r '.Mqtt.Udpinport' $LBSCONFIGDIR/general.json)
+UDPINPORT=$(jq -r '.Mqtt.Udpinport' $LBSCONFIG/general.json)
 FAILSTARTS=0
 LAST=0
 NEWDATA=""
@@ -55,7 +55,7 @@ do
 
 	# Check for new data and send it to Broker
 	NEWDATA=$(cat $JSONFILE)
-	if [ $NEWDATA -ne $OLDDATA ]; then
+	if [ "$NEWDATA" != "$OLDDATA" ]; then
 		LOGDEB "New data found: publish $TOPIC/data $NEWDATA"
 		echo "publish $TOPIC/data $NEWDATA" > /dev/udp/127.0.0.1/$UDPINPORT
 		echo "publish $TOPIC/last $NOW" > /dev/udp/127.0.0.1/$UDPINPORT
@@ -64,7 +64,7 @@ do
 
 	# Keepalive
 	let "TIMEDIFF=$NOW-$LAST"
-	if [ $DIFF -gt 59 ]; then
+	if [ $TIMEDIFF -gt 59 ]; then
 		echo "publish $TOPIC/keepalive $NOW" > /dev/udp/127.0.0.1/$UDPINPORT
 		LAST=$NOW
 	fi
