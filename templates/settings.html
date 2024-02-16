@@ -76,7 +76,7 @@
 			<img src="./images/unknown_20.png">
 		</div>
 		<div class="status" id="servicestatus">
-			<TMPL_VAR "GPIOS.LABEL_UNKNOWN">
+			<TMPL_VAR "COMMON.LABEL_UNKNOWN">
 		</div>
 		<div>
 			<a href="#" onclick="servicerestart();return false;" data-role="button" data-inline="true" data-icon="refresh" data-mini="true"
@@ -465,6 +465,7 @@ function servicerestart() {
 	.always(function( data ) {
 		console.log( "Servicerestart Finished", data );
 		nopidrefresh = "0";
+		servicestatus();
 	});
 }
 
@@ -493,6 +494,7 @@ function servicestop() {
 	.always(function( data ) {
 		console.log( "Servicestop Finished", data );
 		nopidrefresh = "0";
+		servicestatus();
 	});
 }
 
