@@ -77,7 +77,7 @@ sudo ./freq1 4 6 -r10
 #define OPT_R_DEF 10
 
 #define OPT_S_MIN 1
-#define OPT_S_MAX 10
+#define OPT_S_MAX 500
 #define OPT_S_DEF 5
 
 typedef struct
