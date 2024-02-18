@@ -77,7 +77,7 @@ sudo ./freq1 4 6 -r10
 #define OPT_R_DEF 10
 
 #define OPT_S_MIN 1
-#define OPT_S_MAX 500
+#define OPT_S_MAX 10
 #define OPT_S_DEF 5
 
 typedef struct
@@ -156,7 +156,7 @@ static int initOpts(int argc, char *argv[])
       switch (opt)
       {
          case 'f':
-	    g_opt_f = optarg;
+            g_opt_f = optarg;
             break;
 
          case 'p':
@@ -309,13 +309,13 @@ int main(int argc, char *argv[])
          g_reset_counts[g] = 1;
 
          if (g_opt_v == 1) {
-           printf("g=%d %.0f (%d/%d)\n",
+           printf("g=%d %.2f (%d/%d)\n",
               g, 1000000.0 * tally / diff, tally, diff);
          }
 
          /* write to json output */
          if (g_opt_f != NULL) {
-           fprintf(fp, "\"gpio%d\": {\"gpio\": %d, \"freq\": %.0f, \"tally\": %d, \"diff\": %d}",
+           fprintf(fp, "\"gpio%d\": {\"gpio\": %d, \"freq\": %.2f, \"tally\": %d, \"diff\": %d}",
               g, g, 1000000.0 * tally / diff, tally, diff);
            if (i < g_num_gpios - 1) {
              fprintf(fp, ",");
