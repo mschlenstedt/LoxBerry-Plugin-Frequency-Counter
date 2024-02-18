@@ -203,8 +203,6 @@ void edges(int gpio, int level, uint32_t tick)
    {
       g_reset_counts[gpio] = 0;
       l_gpio_data[gpio].first_tick = tick;
-      l_gpio_data[gpio].last_tick = tick;
-      l_gpio_data[gpio].pulse_count = 0;
    }
 }
 
@@ -306,7 +304,10 @@ int main(int argc, char *argv[])
          tally = g_gpio_data[g].pulse_count;
          if (diff == 0) diff = 1;
 
+         // Set marker to reset the tick values on the next edge
          g_reset_counts[g] = 1;
+		 // Delete the pulse count right now (In case there is no further edge, the value otherwise stays forever)
+         l_gpio_data[g].pulse_count = 0;
 
          if (g_opt_v == 1) {
            printf("g=%d %.2f (%d/%d)\n",
