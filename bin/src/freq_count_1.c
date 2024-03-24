@@ -195,14 +195,20 @@ static int initOpts(int argc, char *argv[])
 
 void edges(int gpio, int level, uint32_t tick)
 {
-   l_gpio_data[gpio].last_tick = tick;
-
-   if (level == 1) l_gpio_data[gpio].pulse_count++;
-
    if (g_reset_counts[gpio])
    {
       g_reset_counts[gpio] = 0;
-      l_gpio_data[gpio].first_tick = tick;
+      l_gpio_data[gpio].pulse_count = 0;
+      l_gpio_data[gpio].first_tick = 0;
+      l_gpio_data[gpio].last_tick = 0;
+   }
+ 
+   if (level != PI_TIMEOUT) {
+      if (!l_gpio_data[gpio].first_tick)
+         l_gpio_data[gpio].first_tick = tick;
+      l_gpio_data[gpio].last_tick = tick;
+      if (level == 1)
+         l_gpio_data[gpio].pulse_count++;
    }
 }
 
@@ -258,7 +264,11 @@ int main(int argc, char *argv[])
 
    /* monitor g_gpio level changes */
 
-   for (i=0; i<g_num_gpios; i++) gpioSetAlertFunc(g_gpio[i], edges);
+   for (i=0; i<g_num_gpios; i++) {
+      gpioSetAlertFunc(g_gpio[i], edges);
+      // If no edge is detected for 1000msec, the callback is called with level set to PI_TIMEOUT 
+      gpioSetWatchdog(g_gpio[i], 1000);
+   }
 
    mode = PI_INPUT;
 
@@ -306,8 +316,6 @@ int main(int argc, char *argv[])
 
          // Set marker to reset the tick values on the next edge
          g_reset_counts[g] = 1;
-		 // Delete the pulse count right now (In case there is no further edge, the value otherwise stays forever)
-         l_gpio_data[g].pulse_count = 0;
 
          if (g_opt_v == 1) {
            printf("g=%d %.2f (%d/%d)\n",
