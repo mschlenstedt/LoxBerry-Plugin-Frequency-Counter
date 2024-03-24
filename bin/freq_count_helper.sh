@@ -30,7 +30,17 @@ case "$1" in
 	JSONFILE=$(jq -r '.filename' $LBPCONFIGDIR/plugin.json)
 	TEST=$(jq -r '.test' $LBPCONFIGDIR/plugin.json)
 	SAMPLERATE=$(jq -r '.samplerate' $LBPCONFIGDIR/plugin.json)
+	if [ $SAMPLERATE -lt 1 ]; then
+		SAMPLERATE=1
+	elif [ $SAMPLERATE -gt 10 ]; then
+		SAMPLERATE=10
+	fi
 	REFRESHRATE=$(jq -r '.refreshrate' $LBPCONFIGDIR/plugin.json)
+	if [ $REFRESHRATE -lt 1 ]; then
+		REFRESHRATE=1
+	elif [ $REFRESHRATE -gt 30 ]; then
+		REFRESHRATE=30
+	fi
 	let REFRESHRATE=$REFRESHRATE*10
 	FC1=$(jq -r '.fc1' $LBPCONFIGDIR/plugin.json)
 	if [ $FC1 -gt 0 ]; then
