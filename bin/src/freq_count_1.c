@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
-
+#include <pthread.h>
 #include <pigpio.h>
 
 /*
@@ -103,6 +103,8 @@ static int g_opt_s = OPT_S_DEF;
 static int g_opt_t = 0;
 static int g_opt_v = 0;
 
+pthread_mutex_t lock;
+
 char *g_opt_f = NULL;
 FILE *fp = NULL;
 
@@ -195,6 +197,7 @@ static int initOpts(int argc, char *argv[])
 
 void edges(int gpio, int level, uint32_t tick)
 {
+   pthread_mutex_lock(&lock);
    if (g_reset_counts[gpio])
    {
       g_reset_counts[gpio] = 0;
@@ -210,10 +213,14 @@ void edges(int gpio, int level, uint32_t tick)
       if (level == 1)
          l_gpio_data[gpio].pulse_count++;
    }
+   pthread_mutex_unlock(&lock);
 }
 
 int main(int argc, char *argv[])
 {
+	if (pthread_mutex_init(&lock, NULL) != 0)
+		fatal(1, "Mutex init has failed\n");
+	
    int i, rest, g, wave_id, mode, diff, tally;
    gpioPulse_t pulse[2];
    int count[MAX_GPIOS];
@@ -308,7 +315,9 @@ int main(int argc, char *argv[])
       for (i=0; i<g_num_gpios; i++)
       {
          g = g_gpio[i];
+         pthread_mutex_lock(&lock);
          g_gpio_data[g] = l_gpio_data[g];
+         pthread_mutex_unlock(&lock);
 
          diff = g_gpio_data[g].last_tick - g_gpio_data[g].first_tick;
          tally = g_gpio_data[g].pulse_count;
@@ -340,6 +349,7 @@ int main(int argc, char *argv[])
 
    }
 
+   pthread_mutex_destroy(&lock);
    gpioTerminate();
 }
 
