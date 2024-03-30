@@ -109,7 +109,6 @@ static int g_opt_v = 0;
 pthread_mutex_t lock;
 
 char *g_opt_f = NULL;
-FILE *fp = NULL;
 
 void usage()
 {
@@ -216,17 +215,28 @@ void edges(int gpio, int level, uint32_t tick)
 
 int main(int argc, char *argv[])
 {
-	if (pthread_mutex_init(&lock, NULL) != 0)
-		fatal(1, "Mutex init has failed\n");
+	int i = 0;
+	int rest = 0;
+	int g = 0;
+	int wave_id = 0;
+	int mode = 0;
+	int diff = 0;
+	int tally = 0;
+	double dbValue = 0;
+	FILE *fp = NULL;
 
-	int i, rest, g, wave_id, mode, diff, tally;
-	double dbValue;
-	gpioPulse_t pulse[2];
-	int count[MAX_GPIOS];
 	gpioData_t gpio_data;
+	memset((void*)&gpio_data, 0x00, sizeof(gpioData_t));
+
+	gpioPulse_t pulse[2];
+	for(int iCount = 0; iCount < 2; iCount++)
+		memset((void*)&pulse[iCount], 0x00, sizeof(gpioPulse_t));
 
 	for(int iCount = 0; iCount < MAX_GPIOS; iCount++)
 		memset((void*)&edge_gpio_data[iCount], 0x00, sizeof(gpioData_t));
+
+	if (pthread_mutex_init(&lock, NULL) != 0)
+		fatal(1, "Mutex init has failed\n");
 
 	/* command line parameters */
 
@@ -258,7 +268,7 @@ int main(int argc, char *argv[])
 	gpioCfgClock(g_opt_s, 1, 1);
 
 	if (gpioInitialise()<0)
-		return 1;
+		fatal(1, "gpioInitialise() failed");
 
 	gpioWaveClear();
 
@@ -290,7 +300,7 @@ int main(int argc, char *argv[])
 		mode = PI_OUTPUT;
 	}
 
-	if (g_opt_f != NULL)
+	if (g_opt_f)
 		printf("Writing data to %s\n", g_opt_f);
 
 	for (i=0; i<g_num_gpios; i++)
@@ -311,10 +321,10 @@ int main(int argc, char *argv[])
 			g_opt_v = 1;
 
 		/* start json output */
-		if (g_opt_f != NULL)
+		if (fp)
 			fprintf(fp, "{");
 
-		for (i=0; i<g_num_gpios; i++)
+		for (i = 0; i < g_num_gpios; i++)
 		{
 			g = g_gpio[i];
 			pthread_mutex_lock(&lock);
@@ -323,12 +333,16 @@ int main(int argc, char *argv[])
 			edge_gpio_data[g].reset = 1;
 			pthread_mutex_unlock(&lock);
 
-			diff = gpio_data.last_tick - gpio_data.first_tick;
+			if (gpio_data.last_tick > gpio_data.first_tick)
+				diff = gpio_data.last_tick - gpio_data.first_tick;
+			else if (gpio_data.last_tick < gpio_data.first_tick)
+				diff = 0xFFFFFFFF - gpio_data.first_tick + gpio_data.last_tick;
+
 			if (diff == 0)
 				diff = 1;
-
+								
 			tally = gpio_data.pulse_count;
-			if (tally && diff > 0)
+			if (tally)
 				dbValue = 1000000.0 * tally / diff;
 			else
 				dbValue = 0;
@@ -338,9 +352,7 @@ int main(int argc, char *argv[])
 		
 			if (g_opt_v == 1)
 				printf("g=%d %.2f (%d/%d)\n", g, dbValue, tally, diff);
-
-			/* write to json output */
-			if (g_opt_f != NULL) {
+			else if (fp) {
 				fprintf(fp, "\"gpio%d\": {\"gpio\": %d, \"freq\": %.2f, \"tally\": %d, \"diff\": %d}", g, g, dbValue, tally, diff);
 				if (i < g_num_gpios - 1)
 					fprintf(fp, ",");
@@ -348,7 +360,7 @@ int main(int argc, char *argv[])
 		}
 
 		/* end json output */
-		if (g_opt_f != NULL) {
+		if (fp) {
 			fprintf(fp, "}\n");
 			fclose(fp);
 		}
