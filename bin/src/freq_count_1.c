@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <pigpio.h>
@@ -44,10 +45,10 @@ sudo ./freq_count_1  4 7 8 9 -r 10 -s 1 -p 2
 /*
 times with minimal_clk on gpio 4 and 6
 sudo ./freq1 4 6 -r10
- 7%   0k   0k
- 8%   5k   0k
- 8%   5k   5k
- 9%  10k   5k
+ 7%	0k	0k
+ 8%	5k	0k
+ 8%	5k	5k
+ 9%  10k	5k
  9%  10k  10k
 10%  15k  10k
 10%  15k  15k
@@ -82,15 +83,17 @@ sudo ./freq1 4 6 -r10
 
 typedef struct
 {
-   uint32_t first_tick;
-   uint32_t last_tick;
-   uint32_t pulse_count;
+	// Sytem tick count when the first edge was recognized
+	uint32_t first_tick;
+	// Sytem tick count of when the last edge was recognized
+	uint32_t last_tick;
+	// The count of positive edges
+	uint32_t pulse_count;
+	// Is set to 1 to one when the values where interpreted to reset the values on the next edge
+	int reset;
 } gpioData_t;
 
-static volatile gpioData_t g_gpio_data[MAX_GPIOS];
-static volatile gpioData_t l_gpio_data[MAX_GPIOS];
-
-static volatile int g_reset_counts[MAX_GPIOS];
+static volatile gpioData_t edge_gpio_data[MAX_GPIOS];
 
 static uint32_t g_mask;
 
@@ -110,246 +113,249 @@ FILE *fp = NULL;
 
 void usage()
 {
-   fprintf
-   (stderr,
-      "\n" \
-      "Usage: sudo ./freq_count_1 gpio ... [OPTION] ...\n" \
-      "   -f filename, export data in json format to filename\n" \
-      "   -p value, sets pulses every p micros, %d-%d, TESTING only\n" \
-      "   -r value, sets refresh period in deciseconds, %d-%d, default %d\n" \
-      "   -s value, sets sampling rate in micros, %d-%d, default %d\n" \
-      "   -v verbose output\n" \
-      "\nEXAMPLE\n" \
-      "sudo ./freq_count_1 4 7 -r2 -s2\n" \
-      "Monitor gpios 4 and 7.  Refresh every 0.2 seconds.  Sample rate 2 micros.\n" \
-      "\n",
-      OPT_P_MIN, OPT_P_MAX,
-      OPT_R_MIN, OPT_R_MAX, OPT_R_DEF,
-      OPT_S_MIN, OPT_S_MAX, OPT_S_DEF
-   );
+	fprintf
+	(stderr,
+		"\n" \
+		"Usage: sudo ./freq_count_1 gpio ... [OPTION] ...\n" \
+		"	-f filename, export data in json format to filename\n" \
+		"	-p value, sets pulses every p micros, %d-%d, TESTING only\n" \
+		"	-r value, sets refresh period in deciseconds, %d-%d, default %d\n" \
+		"	-s value, sets sampling rate in micros, %d-%d, default %d\n" \
+		"	-v verbose output\n" \
+		"\nEXAMPLE\n" \
+		"sudo ./freq_count_1 4 7 -r2 -s2\n" \
+		"Monitor gpios 4 and 7.  Refresh every 0.2 seconds.  Sample rate 2 micros.\n" \
+		"\n",
+		OPT_P_MIN, OPT_P_MAX,
+		OPT_R_MIN, OPT_R_MAX, OPT_R_DEF,
+		OPT_S_MIN, OPT_S_MAX, OPT_S_DEF
+	);
 }
 
 void fatal(int show_usage, char *fmt, ...)
 {
-   char buf[128];
-   va_list ap;
+	char buf[128];
+	va_list ap;
 
-   va_start(ap, fmt);
-   vsnprintf(buf, sizeof(buf), fmt, ap);
-   va_end(ap);
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
 
-   fprintf(stderr, "%s\n", buf);
+	fprintf(stderr, "%s\n", buf);
 
-   if (show_usage) usage();
+	if (show_usage) usage();
 
-   fflush(stderr);
+	fflush(stderr);
 
-   exit(EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
 static int initOpts(int argc, char *argv[])
 {
-   int i, opt;
+	int i, opt;
 
-   while ((opt = getopt(argc, argv, "p:r:s:f:v")) != -1)
-   {
-      i = -1;
+	while ((opt = getopt(argc, argv, "p:r:s:f:v")) != -1)
+	{
+		i = -1;
 
-      switch (opt)
-      {
-         case 'f':
-            g_opt_f = optarg;
-            break;
+		switch (opt)
+		{
+			case 'f':
+				g_opt_f = optarg;
+				break;
 
-         case 'p':
-            i = atoi(optarg);
-            if ((i >= OPT_P_MIN) && (i <= OPT_P_MAX))
-               g_opt_p = i;
-            else fatal(1, "invalid -p option (%d)", i);
-            g_opt_t = 1;
-            break;
+			case 'p':
+				i = atoi(optarg);
+				if ((i >= OPT_P_MIN) && (i <= OPT_P_MAX))
+					g_opt_p = i;
+				else fatal(1, "invalid -p option (%d)", i);
+				g_opt_t = 1;
+				break;
 
-         case 'r':
-            i = atoi(optarg);
-            if ((i >= OPT_R_MIN) && (i <= OPT_R_MAX))
-               g_opt_r = i;
-            else fatal(1, "invalid -r option (%d)", i);
-            break;
+			case 'r':
+				i = atoi(optarg);
+				if ((i >= OPT_R_MIN) && (i <= OPT_R_MAX))
+					g_opt_r = i;
+				else fatal(1, "invalid -r option (%d)", i);
+				break;
 
-         case 's':
-            i = atoi(optarg);
-            if ((i >= OPT_S_MIN) && (i <= OPT_S_MAX))
-               g_opt_s = i;
-            else fatal(1, "invalid -s option (%d)", i);
-            break;
+			case 's':
+				i = atoi(optarg);
+				if ((i >= OPT_S_MIN) && (i <= OPT_S_MAX))
+					g_opt_s = i;
+				else fatal(1, "invalid -s option (%d)", i);
+				break;
 
-         case 'v':
-            g_opt_v = 1;
-            break;
+			case 'v':
+				g_opt_v = 1;
+				break;
 
-        default: /* '?' */
-           usage();
-           exit(-1);
-        }
-    }
-   return optind;
+		  default: /* '?' */
+			  usage();
+			  exit(-1);
+		  }
+	 }
+	return optind;
 }
 
 void edges(int gpio, int level, uint32_t tick)
 {
-   pthread_mutex_lock(&lock);
-   if (g_reset_counts[gpio])
-   {
-      g_reset_counts[gpio] = 0;
-      l_gpio_data[gpio].pulse_count = 0;
-      l_gpio_data[gpio].first_tick = 0;
-      l_gpio_data[gpio].last_tick = 0;
-   }
+	pthread_mutex_lock(&lock);
+	if (edge_gpio_data[gpio].reset)
+		memset((void*)&edge_gpio_data[gpio], 0x00, sizeof(gpioData_t));
  
-   if (level != PI_TIMEOUT) {
-      if (!l_gpio_data[gpio].first_tick)
-         l_gpio_data[gpio].first_tick = tick;
-      l_gpio_data[gpio].last_tick = tick;
-      if (level == 1)
-         l_gpio_data[gpio].pulse_count++;
-   }
-   pthread_mutex_unlock(&lock);
+	if (level != PI_TIMEOUT) {
+		if (!edge_gpio_data[gpio].first_tick)
+			edge_gpio_data[gpio].first_tick = tick;
+		edge_gpio_data[gpio].last_tick = tick;
+		if (level == 1)
+			edge_gpio_data[gpio].pulse_count++;
+	}
+	pthread_mutex_unlock(&lock);
 }
 
 int main(int argc, char *argv[])
 {
 	if (pthread_mutex_init(&lock, NULL) != 0)
 		fatal(1, "Mutex init has failed\n");
-	
-   int i, rest, g, wave_id, mode, diff, tally;
-   gpioPulse_t pulse[2];
-   int count[MAX_GPIOS];
 
-   /* command line parameters */
+	int i, rest, g, wave_id, mode, diff, tally;
+	double dbValue;
+	gpioPulse_t pulse[2];
+	int count[MAX_GPIOS];
+	gpioData_t gpio_data;
 
-   rest = initOpts(argc, argv);
+	for(int iCount = 0; iCount < MAX_GPIOS; iCount++)
+		memset((void*)&edge_gpio_data[iCount], 0x00, sizeof(gpioData_t));
 
-   /* get the gpios to monitor */
+	/* command line parameters */
 
-   g_num_gpios = 0;
+	rest = initOpts(argc, argv);
 
-   for (i=rest; i<argc; i++)
-   {
-      g = atoi(argv[i]);
-      if ((g>=0) && (g<32))
-      {
-         g_gpio[g_num_gpios++] = g;
-         g_mask |= (1<<g);
-      }
-      else fatal(1, "%d is not a valid g_gpio number\n", g);
-   }
+	/* get the gpios to monitor */
 
-   if (!g_num_gpios) fatal(1, "At least one gpio must be specified");
+	g_num_gpios = 0;
 
-   printf("Monitoring gpios");
-   for (i=0; i<g_num_gpios; i++) printf(" %d", g_gpio[i]);
-   printf("\nSample rate %d micros, refresh rate %d deciseconds\n",
-      g_opt_s, g_opt_r);
+	for (i=rest; i<argc; i++)
+	{
+		g = atoi(argv[i]);
+		if ((g>=0) && (g<32))
+		{
+			g_gpio[g_num_gpios++] = g;
+			g_mask |= (1<<g);
+		}
+		else
+			fatal(1, "%d is not a valid g_gpio number\n", g);
+	}
 
-   gpioCfgClock(g_opt_s, 1, 1);
+	if (!g_num_gpios)
+		fatal(1, "At least one gpio must be specified");
 
-   if (gpioInitialise()<0) return 1;
+	printf("Monitoring gpios");
+	for (i=0; i<g_num_gpios; i++) printf(" %d", g_gpio[i]);
+		printf("\nSample rate %d micros, refresh rate %d deciseconds\n", g_opt_s, g_opt_r);
 
-   gpioWaveClear();
+	gpioCfgClock(g_opt_s, 1, 1);
 
-   pulse[0].gpioOn  = g_mask;
-   pulse[0].gpioOff = 0;
-   pulse[0].usDelay = g_opt_p;
+	if (gpioInitialise()<0)
+		return 1;
 
-   pulse[1].gpioOn  = 0;
-   pulse[1].gpioOff = g_mask;
-   pulse[1].usDelay = g_opt_p;
+	gpioWaveClear();
 
-   gpioWaveAddGeneric(2, pulse);
+	pulse[0].gpioOn  = g_mask;
+	pulse[0].gpioOff = 0;
+	pulse[0].usDelay = g_opt_p;
 
-   wave_id = gpioWaveCreate();
+	pulse[1].gpioOn  = 0;
+	pulse[1].gpioOff = g_mask;
+	pulse[1].usDelay = g_opt_p;
 
-   /* monitor g_gpio level changes */
+	gpioWaveAddGeneric(2, pulse);
 
-   for (i=0; i<g_num_gpios; i++) {
-      gpioSetAlertFunc(g_gpio[i], edges);
-      // If no edge is detected for 1000msec, the callback is called with level set to PI_TIMEOUT 
-      gpioSetWatchdog(g_gpio[i], 1000);
-   }
+	wave_id = gpioWaveCreate();
 
-   mode = PI_INPUT;
+	/* monitor g_gpio level changes */
 
-   if (g_opt_t)
-   {
-      gpioWaveTxSend(wave_id, PI_WAVE_MODE_REPEAT);
-      mode = PI_OUTPUT;
-   }
+	for (i=0; i<g_num_gpios; i++) {
+		gpioSetAlertFunc(g_gpio[i], edges);
+		// If no edge is detected for 1000msec, the callback is called with level set to PI_TIMEOUT 
+		gpioSetWatchdog(g_gpio[i], 1000);
+	}
 
-   if (g_opt_f != NULL) {
-     printf("Writing data to %s\n",
-        g_opt_f);
-   }
+	mode = PI_INPUT;
 
-   for (i=0; i<g_num_gpios; i++) gpioSetMode(g_gpio[i], mode);
+	if (g_opt_t)
+	{
+		gpioWaveTxSend(wave_id, PI_WAVE_MODE_REPEAT);
+		mode = PI_OUTPUT;
+	}
 
-   while (1)
-   {
-      gpioDelay(g_opt_r * 100000);
+	if (g_opt_f != NULL)
+		printf("Writing data to %s\n", g_opt_f);
 
-      // open the file for writing or enable output to stdout
-      if (g_opt_f != NULL) {
-        fp = fopen(g_opt_f, "w");
-        if (fp == NULL) {
-          fprintf(stderr, "Error opening the file %s", g_opt_f);
-          exit(EXIT_FAILURE);
-        }
-      } else {
-        g_opt_v = 1;
-      }
+	for (i=0; i<g_num_gpios; i++)
+		gpioSetMode(g_gpio[i], mode);
 
-      /* start json output */
-      if (g_opt_f != NULL) {
-        fprintf(fp, "{");
-      }
+	while (1)
+	{
+		gpioDelay(g_opt_r * 100000);
 
-      for (i=0; i<g_num_gpios; i++)
-      {
-         g = g_gpio[i];
-         pthread_mutex_lock(&lock);
-         g_gpio_data[g] = l_gpio_data[g];
-         pthread_mutex_unlock(&lock);
+		// open the file for writing or enable output to stdout
+		if (g_opt_f != NULL) {
+			fp = fopen(g_opt_f, "w");
+			if (fp == NULL) {
+				fprintf(stderr, "Error opening the file %s", g_opt_f);
+				exit(EXIT_FAILURE);
+			}
+		} else
+			g_opt_v = 1;
 
-         diff = g_gpio_data[g].last_tick - g_gpio_data[g].first_tick;
-         tally = g_gpio_data[g].pulse_count;
-         if (diff == 0) diff = 1;
+		/* start json output */
+		if (g_opt_f != NULL)
+			fprintf(fp, "{");
 
-         // Set marker to reset the tick values on the next edge
-         g_reset_counts[g] = 1;
+		for (i=0; i<g_num_gpios; i++)
+		{
+			g = g_gpio[i];
+			pthread_mutex_lock(&lock);
+			gpio_data = edge_gpio_data[g];
+			// Set marker to reset the tick values on the next edge
+			edge_gpio_data[g].reset = 1;
+			pthread_mutex_unlock(&lock);
 
-         if (g_opt_v == 1) {
-           printf("g=%d %.2f (%d/%d)\n",
-              g, 1000000.0 * tally / diff, tally, diff);
-         }
+			diff = gpio_data.last_tick - gpio_data.first_tick;
+			if (diff == 0)
+				diff = 1;
 
-         /* write to json output */
-         if (g_opt_f != NULL) {
-           fprintf(fp, "\"gpio%d\": {\"gpio\": %d, \"freq\": %.2f, \"tally\": %d, \"diff\": %d}",
-              g, g, 1000000.0 * tally / diff, tally, diff);
-           if (i < g_num_gpios - 1) {
-             fprintf(fp, ",");
-           }
-         }
-      }
+			tally = gpio_data.pulse_count;
+			if (tally && diff > 0)
+				dbValue = 1000000.0 * tally / diff;
+			else
+				dbValue = 0;
+		
+			 if (diff < 0)
+				 diff = 0;
+		
+			if (g_opt_v == 1)
+				printf("g=%d %.2f (%d/%d)\n", g, dbValue, tally, diff);
 
-      /* end json output */
-      if (g_opt_f != NULL) {
-        fprintf(fp, "}\n");
-        fclose(fp);
-      }
+			/* write to json output */
+			if (g_opt_f != NULL) {
+				fprintf(fp, "\"gpio%d\": {\"gpio\": %d, \"freq\": %.2f, \"tally\": %d, \"diff\": %d}", g, g, dbValue, tally, diff);
+				if (i < g_num_gpios - 1)
+					fprintf(fp, ",");
+			}
+		}
 
-   }
+		/* end json output */
+		if (g_opt_f != NULL) {
+			fprintf(fp, "}\n");
+			fclose(fp);
+		}
 
-   pthread_mutex_destroy(&lock);
-   gpioTerminate();
+	}
+
+	pthread_mutex_destroy(&lock);
+	gpioTerminate();
 }
 
