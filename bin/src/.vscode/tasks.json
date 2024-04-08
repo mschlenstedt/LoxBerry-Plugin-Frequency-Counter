@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "/opt/loxberry/bin/plugins/frequency-counter/src/freq_count_1.c",
+                "-o",
+                "/opt/loxberry/bin/plugins/frequency-counter/freq_count_1",
+                "-lpigpio",
+                "-lpthread"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
